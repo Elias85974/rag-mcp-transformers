@@ -16,6 +16,8 @@ Fuente de verdad: `mission.md`. Esta especificación fija contratos observables 
 
 Se comparan al menos tres encoders: BERT sin ajuste de similitud con mean pooling de la última capa y dos encoders de oraciones. Se miden también chunking, top-k y umbral. Cada configuración probada deja resultados y `.eval.json` en `experimentos/`; la tabla del `INFORME.md` cita esos archivos y explica la elección por `context_relevance`, recall y precision. La configuración final debe superar claramente a BERT. No se optimiza mediante respuestas fijas para preguntas `dev`.
 
+Configuración elegida tras medir en `dev`: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`, fragmentación por párrafo, top-k 1 y coseno mínimo 0. Los títulos del documento y de la sección se incluyen solo al calcular embeddings; cada fragmento de salida conserva el texto del corpus. Las opciones de CLI permiten reproducir las otras configuraciones medidas.
+
 Pruebas antes de implementar: lectura de corpus y preguntas, preservación exacta de texto relevante al fragmentar, salida JSONL por `id`, orden por similitud, y comportamiento de top-k/umbral. La medición definitiva usa `python3 evaluar/evaluar.py recuperacion --preguntas ... --resultados ...`.
 
 ## Parte 2: agente LangChain
