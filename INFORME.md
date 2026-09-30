@@ -24,6 +24,31 @@ HF_HOME=.cache/huggingface .venv/bin/python recuperar.py --preguntas datos/pregu
 .venv/bin/python evaluar/evaluar.py recuperacion --preguntas datos/preguntas_recuperacion_dev.jsonl --resultados resultados.jsonl
 ```
 
-## Partes 2 a 5
+## Parte 2: agente con dos fuentes
+
+El agente (`agente.py`) usa LangChain: `ChatOpenAI` apunta a OpenRouter con `deepseek/deepseek-v4-flash-0731` y temperatura 0, y `create_agent` ejecuta el ciclo de tool calling hasta que el modelo responde sin pedir herramientas. Las seis herramientas son funciones con `@tool`; su docstring es la descripción que lee el modelo. `buscar_documentos` usa la configuración elegida en la parte 1 (MiniLM, párrafo, top-k 1, umbral 0) y carga el índice una sola vez. Las otras cinco llaman a la API local y, si el nombre no existe, le devuelven al modelo el JSON de error con las opciones válidas. El prompt de sistema indica usar documentos para normas, la API para el estado del día, las dos fuentes cuando la pregunta combina ambas, y responder solo con lo que devolvieron las herramientas.
+
+Cada corrida escribe las respuestas, la evaluación y un log con cada llamada al modelo (tokens y `usage.cost` de OpenRouter), cada tool con sus argumentos y su resultado, y la respuesta final.
+
+```bash
+HF_HOME=.cache/huggingface .venv/bin/python agente.py --preguntas datos/preguntas_agente_dev.jsonl --salida respuestas.jsonl
+.venv/bin/python evaluar/evaluar.py agente --preguntas datos/preguntas_agente_dev.jsonl --respuestas respuestas.jsonl
+```
+
+| Corrida | Ruteo | Context relevance | Faithfulness | Answer relevance | Costo agente (USD) | Costo juez (USD) | Archivos |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Top-k 1 en `buscar_documentos` | 1,000 | 4,417 | 5,000 | 4,500 | 0,003230 | 0,01619 | [`respuestas.jsonl`](respuestas.jsonl), [`.eval.json`](respuestas.jsonl.eval.json), [log](respuestas.log.md) |
+
+El agente eligió las herramientas esperadas en las 12 preguntas y el juez no encontró afirmaciones sin respaldo. Las tres métricas superan 4. Las dos preguntas con notas bajas fallaron en la recuperación, no en el ruteo ni en la redacción:
+
+- **A04** (¿quiénes pueden donar sangre?; CR 1, AR 1). El modelo buscó dos veces con consultas distintas, y las dos veces el primer fragmento fue el párrafo de horarios de hemoterapia. Los requisitos de edad y peso están en el párrafo siguiente de `donacion_sangre.md`. El agente respondió solo con los horarios y dijo que no tenía los requisitos; por eso la fidelidad quedó en 5.
+- **A12** (insulina NPH; CR 3, AR 3). El stock y la reposición salieron bien de la API. Para retirarla hacen falta dos párrafos de `farmacia.md` (receta de un profesional del hospital y DNI), pero top-k 1 trajo el de medicamentos de alto costo. La respuesta aclaró que no encontró requisitos específicos.
+- **A11** (CR 4). El modelo hizo una segunda búsqueda y agregó un fragmento sobre acompañantes que no hacía falta; el juez lo contó como ruido.
+
+En una prueba previa de A10 con otra formulación de la búsqueda, el fragmento recuperado fue el de acompañantes de internación general y no el de pediatría. Los tres casos muestran el mismo límite: top-k 1 maximizó `context_relevance` en la parte 1, pero en el agente una sola búsqueda equivocada deja sin evidencia la respuesta.
+
+Costo de OpenRouter en la parte 2 hasta ahora: USD 0,00090 en dos pruebas de A10, USD 0,00323 en la corrida y USD 0,01619 del juez, en total USD 0,02032 según `usage.cost`. Falta contrastarlo con el dashboard de actividad.
+
+## Partes 3 a 5
 
 Pendientes.
