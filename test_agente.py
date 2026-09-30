@@ -62,7 +62,7 @@ class HerramientasTest(unittest.TestCase):
             Path(carpeta, "norma.md").write_text("# Norma\n\nAyuno de 6 horas.\n\nTraer DNI.\n", encoding="utf-8")
             with patch.object(recuperar, "CORPUS", Path(carpeta)), \
                     patch.object(recuperar, "crear_encoder", return_value=EncoderFalso()), \
-                    patch.object(agente, "_indice", None):
+                    patch.object(agente, "_indice", None), patch.object(agente, "TOP_K", 1):
                 resultado = agente.buscar_documentos.invoke({"consulta": "¿Cuánto ayuno?"})
         self.assertEqual(resultado, "Ayuno de 6 horas.")
 

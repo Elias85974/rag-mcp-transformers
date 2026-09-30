@@ -17,7 +17,7 @@ import recuperar
 
 API = "http://localhost:8765"
 MODELO = "deepseek/deepseek-v4-flash-0731"
-TOP_K = 1
+TOP_K = 2
 INSTRUCCIONES = """Sos el asistente del Hospital Provincial Arroyo Claro y respondés preguntas de pacientes y familiares.
 No sabés nada del hospital por tu cuenta: toda la información sale de las herramientas.
 - Normas, procedimientos, horarios fijos y requisitos: buscar_documentos.
