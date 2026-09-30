@@ -66,6 +66,19 @@ class HerramientasTest(unittest.TestCase):
                 resultado = agente.buscar_documentos.invoke({"consulta": "¿Cuánto ayuno?"})
         self.assertEqual(resultado, "Ayuno de 6 horas.")
 
+    def test_buscar_documentos_respeta_top_k(self):
+        class EncoderFalso:
+            def encode(self, textos, tipo):
+                return np.array([[1.0, 0.0] if "ayuno" in t.lower() else [0.6, 0.8] for t in textos])
+
+        with tempfile.TemporaryDirectory() as carpeta:
+            Path(carpeta, "norma.md").write_text("# Norma\n\nAyuno de 6 horas.\n\nTraer DNI.\n", encoding="utf-8")
+            with patch.object(recuperar, "CORPUS", Path(carpeta)), \
+                    patch.object(recuperar, "crear_encoder", return_value=EncoderFalso()), \
+                    patch.object(agente, "_indice", None), patch.object(agente, "TOP_K", 2):
+                resultado = agente.buscar_documentos.invoke({"consulta": "¿Cuánto ayuno?"})
+        self.assertEqual(resultado, "Ayuno de 6 horas.\n\nTraer DNI.")
+
 
 def conversacion_a10():
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
