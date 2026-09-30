@@ -67,5 +67,67 @@ class HerramientasTest(unittest.TestCase):
         self.assertEqual(resultado, "Ayuno de 6 horas.")
 
 
+def conversacion_a10():
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    def uso(entrada, salida, costo):
+        return {"usage_metadata": {"input_tokens": entrada, "output_tokens": salida, "total_tokens": entrada + salida},
+                "response_metadata": {"token_usage": {"cost": costo}}}
+
+    return [
+        HumanMessage("¿Hay camas en pediatría y me puedo quedar?"),
+        AIMessage("", tool_calls=[
+            {"name": "consultar_camas", "args": {"sector": "pediatria"}, "id": "c1"},
+            {"name": "buscar_documentos", "args": {"consulta": "acompañante pediatría"}, "id": "c2"},
+        ], **uso(900, 200, 0.0003)),
+        ToolMessage('{"datos": {"libres": 7}}', tool_call_id="c1", name="consultar_camas"),
+        ToolMessage("Madre, padre o tutor pueden permanecer las 24 horas.", tool_call_id="c2", name="buscar_documentos"),
+        AIMessage("Hay 7 camas libres y podés quedarte las 24 horas.", **uso(1100, 50, 0.0001)),
+    ]
+
+
+class ResumenTest(unittest.TestCase):
+    def test_resumen_sigue_el_contrato_del_evaluador(self):
+        resumen = agente.resumir(conversacion_a10())
+        self.assertEqual(resumen["respuesta"], "Hay 7 camas libres y podés quedarte las 24 horas.")
+        self.assertEqual(resumen["contextos"], ['{"datos": {"libres": 7}}',
+                                                "Madre, padre o tutor pueden permanecer las 24 horas."])
+        self.assertEqual(resumen["herramientas"], ["consultar_camas", "buscar_documentos"])
+
+    def test_traza_registra_tools_tokens_y_costo_por_llamada(self):
+        pasos = agente.resumir(conversacion_a10())["traza"]
+        self.assertEqual([p["tipo"] for p in pasos], ["modelo", "tool", "tool", "modelo"])
+        self.assertEqual(pasos[0]["entrada"], 900)
+        self.assertEqual(pasos[0]["costo"], 0.0003)
+        self.assertEqual(pasos[1]["nombre"], "consultar_camas")
+        self.assertEqual(pasos[1]["argumentos"], {"sector": "pediatria"})
+        self.assertEqual(pasos[1]["resultado"], '{"datos": {"libres": 7}}')
+
+    def test_log_markdown_muestra_la_corrida_completa(self):
+        fila = {"id": "A10", "pregunta": "¿Hay camas en pediatría y me puedo quedar?",
+                **agente.resumir(conversacion_a10())}
+        log = agente.log_markdown([fila])
+        for esperado in ["A10", "¿Hay camas en pediatría y me puedo quedar?", "consultar_camas",
+                         '"sector": "pediatria"', '{"datos": {"libres": 7}}', "Hay 7 camas libres",
+                         "900", "0.000300", "0.000400"]:
+            self.assertIn(esperado, log)
+
+    def test_main_escribe_jsonl_y_log_por_pregunta(self):
+        with tempfile.TemporaryDirectory() as carpeta:
+            base = Path(carpeta)
+            preguntas = base / "preguntas.jsonl"
+            preguntas.write_text('{"id":"A10","pregunta":"¿Camas?"}\n{"id":"A11","pregunta":"¿Turnos?"}\n',
+                                 encoding="utf-8")
+            salida = base / "respuestas.jsonl"
+            with patch.object(agente, "crear_agente"), \
+                    patch.object(agente, "responder", return_value=agente.resumir(conversacion_a10())):
+                agente.ejecutar(preguntas, salida)
+            filas = [json.loads(linea) for linea in salida.read_text(encoding="utf-8").splitlines()]
+            log = (base / "respuestas.log.md").read_text(encoding="utf-8")
+        self.assertEqual([f["id"] for f in filas], ["A10", "A11"])
+        self.assertEqual(set(filas[0]), {"id", "respuesta", "contextos", "herramientas"})
+        self.assertIn("A11", log)
+
+
 if __name__ == "__main__":
     unittest.main()
