@@ -34,7 +34,7 @@ Pruebas antes de implementar: nombres y argumentos de herramientas, serializaci�
 
 `servidor_mcp.py` publica las seis herramientas anteriores por stdio con `FastMCP` del SDK oficial `mcp` 1.x. No instala el paquete independiente `fastmcp` ni usa LangChain en el servidor. Las descripciones de las tools son sus docstrings.
 
-`python3 agente_mcp.py --preguntas datos/preguntas_agente_dev.jsonl --salida respuestas_mcp.jsonl` usa LangChain y `langchain-mcp-adapters` para descubrir herramientas con `tools/list` y llamarlas con `tools/call`. El cliente no contiene código propio de acceso a API ni de recuperación. Aplica el mismo contrato de salida y logging que la parte 2. Se prueba cada tool con MCP Inspector y se guardan capturas en `experimentos/inspector/`. El informe compara métricas y costo de ambos agentes a partir de sus evaluaciones y logs.
+`python3 agente_mcp.py --preguntas datos/preguntas_agente_dev.jsonl --salida respuestas_mcp.jsonl` usa LangChain y `langchain-mcp-adapters` para descubrir herramientas con `tools/list` y llamarlas con `tools/call`. El cliente no contiene código propio de acceso a API ni de recuperación. Abre una sola sesión stdio por corrida para que el servidor cargue el encoder una vez, y convierte los bloques de contenido MCP a texto para `contextos`. Aplica el mismo contrato de salida y logging que la parte 2. Se prueba cada tool con MCP Inspector y se guardan capturas en `experimentos/inspector/`. El informe compara métricas y costo de ambos agentes a partir de sus evaluaciones y logs.
 
 Pruebas antes de implementar: descubrimiento de seis tools, argumentos y resultado de una llamada MCP, y trazas completas del cliente.
 

@@ -52,6 +52,34 @@ Por eso se midió top-k 2, un cambio general que no depende de estas preguntas. 
 
 Costo de OpenRouter en la parte 2 hasta ahora: USD 0,00090 en dos pruebas de A10, USD 0,00323 + 0,01619 (agente y juez) con top-k 1 y USD 0,00331 + 0,01661 con top-k 2, en total USD 0,04024 según `usage.cost`. Falta contrastarlo con el dashboard de actividad.
 
-## Partes 3 a 5
+## Parte 3: las mismas herramientas como servidor MCP
+
+`servidor_mcp.py` publica las seis herramientas por stdio con `FastMCP` del SDK oficial `mcp` 1.x (`@mcp.tool()`, sin LangChain). Tienen los mismos nombres, argumentos y docstrings que en la parte 2, y `buscar_documentos` usa el mismo recuperador con top-k 2. `agente_mcp.py` lanza el servidor como subproceso, abre **una sola sesión MCP** para toda la corrida, descubre las tools con `tools/list` (`load_mcp_tools` de `langchain-mcp-adapters`) y se las pasa al mismo `create_agent` de LangChain, con el mismo modelo, temperatura y prompt de sistema. Cada llamada del modelo a una tool se convierte en un `tools/call` al servidor. El cliente no tiene código propio de API ni de recuperación: de `agente.py` reutiliza solo el prompt, el id del modelo, la lectura de `.env`, el resumen de la conversación y el formato del log. Las tools MCP devuelven bloques de contenido (`[{"type": "text", "text": ...}]`), y el cliente los convierte a texto antes de escribir `contextos`.
+
+Una sesión persistente importa: con `MultiServerMCPClient.get_tools()` sin sesión, cada `tools/call` lanza un servidor nuevo y vuelve a cargar MiniLM y a calcular los embeddings del corpus.
+
+```bash
+HF_HOME=.cache/huggingface .venv/bin/python agente_mcp.py --preguntas datos/preguntas_agente_dev.jsonl --salida respuestas_mcp.jsonl
+.venv/bin/python evaluar/evaluar.py agente --preguntas datos/preguntas_agente_dev.jsonl --respuestas respuestas_mcp.jsonl
+```
+
+El servidor también se probó con el MCP Inspector (`npx @modelcontextprotocol/inspector .venv/bin/python servidor_mcp.py`), sin LLM: se llamó a cada una de las seis tools y se guardaron las capturas en [`experimentos/inspector/`](experimentos/inspector/). La primera llamada a `buscar_documentos` tardó unos 50 segundos porque carga el encoder, y mientras tanto el servidor no atiende otras llamadas; las siguientes tardan alrededor de 50 ms.
+
+| Agente | Ruteo | Context relevance | Faithfulness | Answer relevance | Tokens (entrada / salida) | Costo agente (USD) | Costo juez (USD) | Archivos |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Parte 2, tools en proceso | 1,000 | 4,750 | 5,000 | 5,000 | 30.007 / 2.354 | 0,003313 | 0,01661 | [`respuestas.jsonl`](respuestas.jsonl), [`.eval.json`](respuestas.jsonl.eval.json), [log](respuestas.log.md) |
+| Parte 3, tools por MCP | 1,000 | 4,583 | 5,000 | 5,000 | 29.999 / 2.157 | 0,003061 | 0,01852 | [`respuestas_mcp.jsonl`](respuestas_mcp.jsonl), [`.eval.json`](respuestas_mcp.jsonl.eval.json), [log](respuestas_mcp.log.md) |
+
+El agente MCP eligió las mismas herramientas que el de la parte 2 en las 12 preguntas, y la primera llamada al modelo de cada pregunta tuvo los mismos tokens de entrada en las dos corridas (por ejemplo 1.095 en A01 y 1.101 en A10). Eso muestra que el modelo recibe las mismas descripciones y esquemas: el transporte MCP no cambia lo que ve el modelo.
+
+La diferencia de 0,17 en context relevance sale de dos preguntas que bajaron de 5 a 4 (A03 y A10; 2/12 = 0,17). Los logs muestran que no la causó MCP:
+
+- **A03 y A10**: los contextos son idénticos, carácter por carácter, a los de la parte 2 (mismas consultas a `buscar_documentos` y mismos fragmentos). Solo cambió el formato de la respuesta (A03 agregó negritas). El juez puso 5 en la parte 2 y 4 aquí, y justificó el 4 con "una pequeña mención sobre internación" o "una porción menor de texto irrelevante" en esos mismos textos. Es variación del juez, no del agente.
+- **A11**: la segunda búsqueda usó otra formulación ("consulta ambulatoria o turno de especialidad") y trajo un fragmento distinto; quedó en CR 4 en las dos corridas.
+- **A04**: el modelo reformuló la consulta ("requisitos para donar sangre quiénes pueden donar") y recuperó los mismos dos párrafos; CR 5 en las dos.
+
+De las 12 preguntas, solo en A11 los contextos difieren de los de la parte 2. Aun con temperatura 0, DeepSeek no es totalmente determinista y reescribe algunas consultas. Esa variación, más la del juez, explica diferencias de ±1 en preguntas sueltas. El costo del agente es casi el mismo (USD 0,00025 menos, por respuestas un poco más cortas). MCP agrega un proceso y la serialización JSON-RPC, pero no tokens.
+
+## Partes 4 y 5
 
 Pendientes.

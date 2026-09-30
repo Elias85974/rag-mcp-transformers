@@ -132,7 +132,7 @@ def resumir(mensajes: list) -> dict:
             "traza": traza}
 
 
-def log_markdown(filas: list[dict]) -> str:
+def log_markdown(filas: list[dict], titulo: str = "Corrida del agente") -> str:
     total = {"entrada": 0, "salida": 0, "costo": 0.0}
     partes = []
     for fila in filas:
@@ -152,7 +152,7 @@ def log_markdown(filas: list[dict]) -> str:
         partes += ["", "**Respuesta:**", "", fila["respuesta"], "",
                    f"**Uso de la pregunta:** {subtotal['entrada']} tokens de entrada, {subtotal['salida']} de salida, "
                    f"USD {subtotal['costo']:.6f}.", ""]
-    encabezado = [f"# Corrida del agente ({datetime.now():%Y-%m-%d %H:%M})", "",
+    encabezado = [f"# {titulo} ({datetime.now():%Y-%m-%d %H:%M})", "",
                   f"Modelo: `{MODELO}`. Top-k de buscar_documentos: {TOP_K}. Preguntas: {len(filas)}.", "",
                   f"**Total de la corrida:** {total['entrada']} tokens de entrada, {total['salida']} de salida, "
                   f"USD {total['costo']:.6f} según `usage.cost` de OpenRouter.", ""]
