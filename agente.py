@@ -17,6 +17,7 @@ import recuperar
 
 API = "http://localhost:8765"
 MODELO = "deepseek/deepseek-v4-flash-0731"
+TOP_K = 1
 INSTRUCCIONES = """Sos el asistente del Hospital Provincial Arroyo Claro y respondés preguntas de pacientes y familiares.
 No sabés nada del hospital por tu cuenta: toda la información sale de las herramientas.
 - Normas, procedimientos, horarios fijos y requisitos: buscar_documentos.
@@ -49,7 +50,7 @@ def buscar_documentos(consulta: str) -> str:
         encoder = recuperar.crear_encoder("minilm")
         _indice = fragmentos, encoder, encoder.encode([f.embedding_texto for f in fragmentos], "pasaje")
     fragmentos, encoder, vectores = _indice
-    indices = recuperar.seleccionar(encoder.encode([consulta], "consulta")[0], vectores, 1, 0.0)
+    indices = recuperar.seleccionar(encoder.encode([consulta], "consulta")[0], vectores, TOP_K, 0.0)
     return "\n\n".join(fragmentos[i].texto for i in indices) or "No se encontraron documentos."
 
 
@@ -152,7 +153,7 @@ def log_markdown(filas: list[dict]) -> str:
                    f"**Uso de la pregunta:** {subtotal['entrada']} tokens de entrada, {subtotal['salida']} de salida, "
                    f"USD {subtotal['costo']:.6f}.", ""]
     encabezado = [f"# Corrida del agente ({datetime.now():%Y-%m-%d %H:%M})", "",
-                  f"Modelo: `{MODELO}`. Preguntas: {len(filas)}.", "",
+                  f"Modelo: `{MODELO}`. Top-k de buscar_documentos: {TOP_K}. Preguntas: {len(filas)}.", "",
                   f"**Total de la corrida:** {total['entrada']} tokens de entrada, {total['salida']} de salida, "
                   f"USD {total['costo']:.6f} según `usage.cost` de OpenRouter.", ""]
     return "\n".join(encabezado + partes)
@@ -188,7 +189,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preguntas", type=Path, required=True)
     parser.add_argument("--salida", type=Path, required=True)
+    parser.add_argument("--top-k", type=int, default=TOP_K, help="fragmentos por búsqueda de documentos")
     args = parser.parse_args()
+    if args.top_k < 1:
+        parser.error("--top-k debe ser positivo")
+    globals()["TOP_K"] = args.top_k
     cargar_env()
     ejecutar(args.preguntas, args.salida)
 
