@@ -80,6 +80,32 @@ La diferencia de 0,17 en context relevance sale de dos preguntas que bajaron de 
 
 De las 12 preguntas, solo en A11 los contextos difieren de los de la parte 2. Aun con temperatura 0, DeepSeek no es totalmente determinista y reescribe algunas consultas. Esa variación, más la del juez, explica diferencias de ±1 en preguntas sueltas. El costo del agente es casi el mismo (USD 0,00025 menos, por respuestas un poco más cortas). MCP agrega un proceso y la serialización JSON-RPC, pero no tokens.
 
-## Partes 4 y 5
+## Parte 4: atención en NumPy
 
-Pendientes.
+`atencion.py` usa solo NumPy. Primero se corrieron los tests de la cátedra contra un esqueleto que levantaba `NotImplementedError` (14 errores) y después se implementó:
+
+- `softmax`: resta el máximo de cada fila antes de exponenciar. Eso no cambia el resultado, porque el factor se cancela, y evita el desborde con valores como 1000.
+- `atencion`: `A = softmax(Q Kᵀ / √d_k)` y salida `A V`. Dividir por √d_k evita que los productos punto crezcan con la dimensión y saturen el softmax. La máscara causal pone −∞ arriba de la diagonal antes del softmax, así cada posición recibe peso 0 de las posiciones futuras y las filas siguen sumando 1.
+- `autoatencion`: Q, K y V son proyecciones de la misma X.
+- `multicabeza`: concatena la salida de cada cabeza y la proyecta con `Wo`.
+- `layer_norm`: normaliza cada fila a media 0 y varianza 1, con `eps` dentro de la raíz.
+
+```bash
+.venv/bin/python atencion/test_atencion.py atencion.py   # 14 tests OK
+```
+
+## Parte 5: bloque de transformer a mano
+
+Pendiente. Se resuelve a mano, sin IA, como pide la consigna. Las hojas escaneadas van en `a_mano/`.
+
+## Costo total en OpenRouter
+
+| Concepto | USD (`usage.cost`) |
+|---|---:|
+| Parte 2: pruebas de A10 | 0,00090 |
+| Parte 2: agente y juez con top-k 1 | 0,01942 |
+| Parte 2: agente y juez con top-k 2 | 0,01992 |
+| Parte 3: agente MCP y juez | 0,02158 |
+| **Total** | **0,06182** |
+
+Las partes 1 y 4 no usan LLM: el evaluador de recuperación no llama al juez. Falta contrastar el total con el dashboard de actividad de OpenRouter.
