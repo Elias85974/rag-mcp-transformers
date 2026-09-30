@@ -4,3 +4,4 @@ _catedra/
 .cache/
 __pycache__/
 *.pyc
+.env
