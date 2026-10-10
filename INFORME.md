@@ -96,16 +96,20 @@ De las 12 preguntas, solo en A11 los contextos difieren de los de la parte 2. Au
 
 ## Parte 5: bloque de transformer a mano
 
-Pendiente. Se resuelve a mano, sin IA, como pide la consigna. Las hojas escaneadas van en `a_mano/`.
+Se adjuntan las [hojas manuscritas escaneadas](a_mano/parte5_escaneada.pdf) (13 páginas): los pasos 1 a 13 de la parte A para ambas frases, los pasos 5 a 9 de la parte B sin máscara causal y las respuestas a las cinco preguntas finales. El PDF conserva el escaneo original suministrado por el grupo.
 
 ## Costo total en OpenRouter
 
-| Concepto | USD (`usage.cost`) |
-|---|---:|
-| Parte 2: pruebas de A10 | 0,00090 |
-| Parte 2: agente y juez con top-k 1 | 0,01942 |
-| Parte 2: agente y juez con top-k 2 | 0,01992 |
-| Parte 3: agente MCP y juez | 0,02158 |
-| **Total** | **0,06182** |
+El costo registrado de la misión es **USD 0,061824** (aproximadamente USD 0,06182), sumando las pruebas preliminares y las llamadas del agente y del juez. Los costos de las corridas completas provienen de `usage.cost` en los logs del agente y de `costo_juez_usd` en las evaluaciones de la cátedra.
 
-Las partes 1 y 4 no usan LLM: el evaluador de recuperación no llama al juez. Falta contrastar el total con el dashboard de actividad de OpenRouter.
+| Concepto | Agente (USD) | Juez (USD) | Total (USD) | Evidencia |
+|---|---:|---:|---:|---|
+| Parte 2: dos pruebas preliminares de A10 | 0,000900 | — | 0,000900 | Registro de pruebas descrito en la sección de la parte 2 |
+| Parte 2: agente con top-k 1 | 0,003230 | 0,016190 | 0,019420 | [Log](experimentos/agente_top1.log.md), [evaluación](experimentos/agente_top1.jsonl.eval.json) |
+| Parte 2: agente con top-k 2 | 0,003313 | 0,016610 | 0,019923 | [Log](respuestas.log.md), [evaluación](respuestas.jsonl.eval.json) |
+| Parte 3: agente MCP | 0,003061 | 0,018520 | 0,021581 | [Log](respuestas_mcp.log.md), [evaluación](respuestas_mcp.jsonl.eval.json) |
+| **Total** | **0,010504** | **0,051320** | **0,061824** | |
+
+Las partes 1 y 4 no usan LLM: los encoders se ejecutan localmente y el evaluador de recuperación no llama al juez. Las verificaciones locales de entrega tampoco generaron llamadas pagas a OpenRouter.
+
+**Cotejo con el dashboard:** pendiente de acceso a la cuenta del grupo. El 10 de octubre de 2026 se intentó consultar [la actividad de OpenRouter](https://openrouter.ai/activity), pero el sitio solicitó iniciar sesión. Por eso no se afirma que el dashboard coincida con el registro anterior. Para completar el requisito, debe compararse la actividad correspondiente a las corridas del TP y documentarse su total y cualquier diferencia; el consumo de otros proyectos de la cuenta no forma parte de esta misión.
